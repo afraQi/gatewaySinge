@@ -2,6 +2,7 @@ package org.example.services;
 
 import com.alibaba.fastjson.JSON;
 
+import com.alibaba.fastjson.TypeReference;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.internal.LinkedTreeMap;
@@ -55,7 +56,7 @@ public class GatewayApiTest {
 
 
         TreeMap<String, Object> originMap = new TreeMap<>(JSON.parseObject(requestJson, TreeMap.class));
-        String strBuild = getSortedParams(originMap);
+        String strBuild = getSortedParams(originMap,new StringBuffer());
 
 
         System.out.println("原始参数" + requestJson);
@@ -93,7 +94,7 @@ public class GatewayApiTest {
 
 
         TreeMap<String, Object> originMap = new TreeMap<>(JSON.parseObject(respJson, TreeMap.class));
-        String strBuild = getSortedParams(originMap);
+        String strBuild = getSortedParams(originMap,new StringBuffer());
 
 
         System.out.println("原始参数" + respJson);
@@ -121,7 +122,7 @@ public class GatewayApiTest {
         TreeMap<String, Object> originalMap = new TreeMap<>(JSON.parseObject(reqStr, TreeMap.class));
 
         // 参数解密
-        Map<String, Object> params = null;
+        TreeMap<String, Object> params = null;
         String paramsStr = "";
 
         paramsStr = RSA.decryptDataOnJava((String) originalMap.get("data"), rsaPrivateKey);
@@ -132,7 +133,7 @@ public class GatewayApiTest {
         }
 
 
-        String sortedParams = getSortedParams(params);
+        String sortedParams = getSortedParams(params,new StringBuffer());
 
         String signature = (String) originalMap.get("sign");
 
@@ -148,26 +149,30 @@ public class GatewayApiTest {
 
 
     /**
-     * 对map进行排序，排除空值，并且得到key1=val1&key2=val2字符串
-     *
+     * 对map进行排序，并且得到key1=val1&key2=val2字符串
      * @param params
+     * @param buffer
      * @return
      */
-    public static String getSortedParams(Map<String, Object> params) {
-        List<String> keys = params.keySet().stream().sorted().collect(Collectors.toList());
-        StringBuilder sb = new StringBuilder(); // new 一个sb
-        for (String key : keys) {
-            if (params.get(key) != null) {
-                if (params.get(key) instanceof List || params.get(key) instanceof Map || params.get(key) instanceof Collection) {
-                    sb.append(key).append("=").append(JSON.toJSONString(params.get(key))).append("&");
-                } else {
-                    sb.append(key).append("=").append(String.valueOf(params.get(key))).append("&");
+    public static String getSortedParams(TreeMap<String, Object> params, StringBuffer buffer) {
+        for (Map.Entry entry : params.entrySet()) {
+            if(entry.getValue() instanceof List){
+                List<Object> list = (List<Object>) entry.getValue();
+                for (Object o : list) {
+                    TreeMap<String, Object> map = JSON.parseObject(JSON.toJSONString(o), new TypeReference<TreeMap<String, Object>>(){});
+                    getSortedParams(map, buffer);
                 }
-
+            } else if (entry.getValue() instanceof Map) {
+                TreeMap<String, Object> map = new TreeMap<>();
+                for (Map.Entry mapEntry : ((Map<?, ?>) entry.getValue()).entrySet()) {
+                    map.put((String) mapEntry.getKey(), mapEntry.getValue());
+                }
+                getSortedParams(map, buffer);
+            } else {
+                buffer.append(entry.getKey()).append("=").append(entry.getValue()).append("&");
             }
-
         }
-        return sb.substring(0, sb.lastIndexOf("&"));
+        return buffer.substring(0, buffer.lastIndexOf("&"));
     }
 
 
