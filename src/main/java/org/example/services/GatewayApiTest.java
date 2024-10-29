@@ -154,26 +154,18 @@ public class GatewayApiTest {
      * @param buffer
      * @return
      */
-    public static String getSortedParams(TreeMap<String, Object> params, StringBuffer buffer) {
-        for (Map.Entry entry : params.entrySet()) {
-            if(entry.getValue() instanceof List){
-                List<Object> list = (List<Object>) entry.getValue();
-                for (Object o : list) {
-                    TreeMap<String, Object> map = JSON.parseObject(JSON.toJSONString(o), new TypeReference<TreeMap<String, Object>>(){});
-                    getSortedParams(map, buffer);
+    public String getSortedParams(Map<String, Object> params, StringBuffer sb) {
+        List<String> keys = params.keySet().stream().sorted().collect(Collectors.toList());
+        for (String key : keys) {
+            if (params.get(key) != null) {
+                if(params.get(key)instanceof List || params.get(key)instanceof Map || params.get(key) instanceof Collection){
+                    sb.append(key).append("=").append(JSON.toJSONString(params.get(key))).append("&");
+                }else {
+                    sb.append(key).append("=").append(String.valueOf(params.get(key))).append("&");
                 }
-            } else if (entry.getValue() instanceof Map) {
-                TreeMap<String, Object> map = new TreeMap<>();
-                for (Map.Entry mapEntry : ((Map<?, ?>) entry.getValue()).entrySet()) {
-                    map.put((String) mapEntry.getKey(), mapEntry.getValue());
-                }
-                getSortedParams(map, buffer);
-            } else {
-                buffer.append(entry.getKey()).append("=").append(entry.getValue()).append("&");
             }
         }
-        return buffer.substring(0, buffer.lastIndexOf("&"));
+        return sb.substring(0, sb.lastIndexOf("&"));
     }
-
 
 }
